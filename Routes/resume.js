@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const ResumeController = require('../Controllers/resume ').addResume;
+const resumeController = require('../Controllers/resume ').addResume;
+const {upload} = require('../utils/multer');
 
-router.post('/addResume', ResumeController);
-
+router.post('/resume', upload.single('resume'), resumeController);
 
 module.exports = router;
