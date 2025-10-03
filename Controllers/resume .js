@@ -78,3 +78,13 @@ exports.addResume = async (req, res) => {
         }
 }
 
+exports.getAllResumeForUser = async (req, res) => {
+    try {
+        const { user } = req.params;
+        let resumes = await ResumeModel.find({ user: user }).sort({ createdAt: -1 });
+        res.status(200).json({ data: resumes });
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ error: 'Server error', message: err.message });
+    }
+}
