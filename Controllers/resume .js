@@ -88,3 +88,4 @@ exports.getAllResumeForUser = async (req, res) => {
         res.status(500).json({ error: 'Server error', message: err.message });
     }
 }
+

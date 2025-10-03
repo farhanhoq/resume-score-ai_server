@@ -15,3 +15,13 @@ exports.register = async (req, res) => {
         res.status(500).json({ error: 'Server Error',message: err.message });
     }
 };
+
+exports.getAllUsers = async (req, res) => {
+    try {
+        const users = await user.find().sort({ createdAt: -1 });
+        res.status(200).json({ data: users });
+    } catch (err) {
+        console.log(err);
+        res.status(500).json({ error: 'Server error', message: err.message });
+    }
+};
