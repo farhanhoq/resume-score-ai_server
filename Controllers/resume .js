@@ -18,6 +18,8 @@ exports.addResume = async (req, res) => {
         const dataBuffer = fs.readFileSync(pdfPath);
         const pdfData = await pdfparse(dataBuffer);
 
+        console.log(req.file.originalname)
+
         const prompt = `
             You are a resume screening assistant.
             Compare the following resume text with the provided Job Description (JD) and give a match score (0-100) and feedback. Divide the feedback into sections: "Strengths" and "Areas for Improvement".
@@ -55,11 +57,24 @@ exports.addResume = async (req, res) => {
             const strengths = strengthMatch ? strengthMatch[1].trim() : 'N/A';
             const areasForImprovement = improvementMatch ? improvementMatch[1].trim() : 'N/A';
 
-            console.log(strengths, areasForImprovement);
+            const newResume = new ResumeModel({
+                user,
+                resume_name: req.file.originalname,
+                job_desc,
+                score,
+                strength: strengths,
+                improvement: areasForImprovement
+            });
 
-    }catch (err) {
-        console.log(err);
-        res.status(500).json({ error: 'Server error', message: err.message });
-    }
+            await newResume.save();
+
+            fs.unlinkSync(pdfPath); // Delete the file after processing
+
+            res.status(200).json({ message: 'Analytics Complete', data: newResume });
+
+        } catch (err) {
+            console.log(err);
+            res.status(500).json({ error: 'Server error', message: err.message });
+        }
 }
 

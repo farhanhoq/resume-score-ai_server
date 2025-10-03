@@ -6,7 +6,7 @@ const resumeSchema = new mongoose.Schema({
         ref: 'user',
         required: true
     },
-    reusme_name: {
+    resume_name: {
         type: String,
         required: true
     },
@@ -17,7 +17,10 @@ const resumeSchema = new mongoose.Schema({
     score: {
         type: String,
     },
-    feedback: {
+    strength: {
+        type: String,
+    },
+    improvement: {
         type: String,
     }
 }, { timestamps: true });
