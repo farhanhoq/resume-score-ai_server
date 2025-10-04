@@ -1,7 +1,5 @@
 const ResumeModel = require('../Models/resume');
-const multer = require("multer");
 const pdfparse = require('pdf-parse');
-const path = require("path");
 const { CohereClient } = require('cohere-ai');
 
 const cohere = new CohereClient({
@@ -12,13 +10,15 @@ exports.addResume = async (req, res) => {
     try {
         const { user, job_desc } = req.body;
         
-        const pdfBuffer = req.file.buffer || null;
-        const pdfPath = req.file.path;
-        const fs = require('fs');
-        const dataBuffer = fs.readFileSync(pdfPath);
-        const pdfData = await pdfparse(dataBuffer);
+        // Check if file exists
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
 
-        console.log(req.file.originalname)
+        // Use buffer directly (no file system operations)
+        const pdfData = await pdfparse(req.file.buffer);
+
+        console.log('Processing resume:', req.file.originalname);
 
         const prompt = `
             You are a resume screening assistant.
@@ -30,52 +30,51 @@ exports.addResume = async (req, res) => {
             Job Description:
             ${job_desc}
 
-            Provide the response in the following  format:
+            Provide the response in the following format:
             Score: <score>
             Strengths:
             Areas for Improvement:
+        `;
 
-            `
-            ;
+        const response = await cohere.chat({
+            model: 'command-r-plus-08-2024',
+            message: prompt,
+            max_tokens: 2000,
+            temperature: 0.3,
+        });
 
-            const response = await cohere.chat({
-                model: 'command-r-plus-08-2024',
-                message: prompt,
-                max_tokens: 2000,
-                temperature: 0.3,
-            });
+        let result = response.text;
 
-            let result = response.text;
-            // console.log(result)
+        const match = result.match(/Score:\s*(\d+)/);
+        const score = match ? parseInt(match[1], 10) : 'N/A';
 
-            const match = result.match(/Score:\s*(\d+)/);
-            const score = match ? parseInt(match[1], 10) : 'N/A';
+        const strengthMatch = result.match(/Strengths:\s*([\s\S]*)Areas for Improvement:/);
+        const improvementMatch = result.match(/Areas for Improvement:\s*([\s\S]*)/);
 
-            const strengthMatch = result.match(/Strengths:\s*([\s\S]*)Areas for Improvement:/);
-            const improvementMatch = result.match(/Areas for Improvement:\s*([\s\S]*)/);
+        const strengths = strengthMatch ? strengthMatch[1].trim() : 'N/A';
+        const areasForImprovement = improvementMatch ? improvementMatch[1].trim() : 'N/A';
 
-            const strengths = strengthMatch ? strengthMatch[1].trim() : 'N/A';
-            const areasForImprovement = improvementMatch ? improvementMatch[1].trim() : 'N/A';
+        const newResume = new ResumeModel({
+            user,
+            resume_name: req.file.originalname,
+            job_desc,
+            score,
+            strength: strengths,
+            improvement: areasForImprovement
+        });
 
-            const newResume = new ResumeModel({
-                user,
-                resume_name: req.file.originalname,
-                job_desc,
-                score,
-                strength: strengths,
-                improvement: areasForImprovement
-            });
+        await newResume.save();
 
-            await newResume.save();
+        res.status(200).json({ message: 'Analytics Complete', data: newResume });
 
-            fs.unlinkSync(pdfPath); // Delete the file after processing
-
-            res.status(200).json({ message: 'Analytics Complete', data: newResume });
-
-        } catch (err) {
-            console.log(err);
-            res.status(500).json({ error: 'Server error', message: err.message });
-        }
+    } catch (err) {
+        console.log('Error in addResume:', err);
+        res.status(500).json({ 
+            error: 'Server error', 
+            message: err.message,
+            details: 'Check Cohere API key and file upload'
+        });
+    }
 }
 
 exports.getAllResumeForUser = async (req, res) => {
@@ -88,4 +87,3 @@ exports.getAllResumeForUser = async (req, res) => {
         res.status(500).json({ error: 'Server error', message: err.message });
     }
 }
-
